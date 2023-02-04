@@ -6,11 +6,16 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.Handler;
 import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.View;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -23,49 +28,69 @@ public class Background extends View {
     Thread th;
     int speed;
     Controller con;
+    Point cam1s=new Point(),cam2s=new Point();
+
     boolean canjoyrun=false;
     boolean isjoystick=false;
     private String bigmsg=null;
-    CameraThread ct1,ct2;
+
     float joystickx=-1,joysticky=-1;
     ArrayList<Double> metal,lngd;
     Handler hand;
-    Bitmap cam1,cam2;
+    WebView cam1,cam2;
     public Background(Context context){
         super(context);
         this.con=null;
+        this.cam1s.x=getWidth();
+        this.cam1s.y=getHeight();
         hand=new Handler();
-        this.ct1=null;
         this.speed=1;
-        this.cam1=null;
         this.metal=new ArrayList<>();
         this.lngd=new ArrayList<>();
-
-
+        this.cam1=new WebView(context);
+        this.cam2=new WebView(context);
+        this.cam1.setWebViewClient(new WebViewClient(){
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                Toast.makeText(context, "Failed to connect with camera 1", Toast.LENGTH_SHORT).show();
+                Thread th=new Thread(){
+                    @Override
+                    public void run() {
+                        try {
+                            sleep(1000);
+                        }catch (Exception e){}
+                        cam1.loadUrl("http://192.168.0.102:8000/?size="+cam1s.x+"X"+cam1s.y);
+                    }
+                };
+                th.start();
+            }
+        });
+        this.cam2.setWebViewClient(new WebViewClient(){
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                Toast.makeText(context, "Failed to connect with camera 2", Toast.LENGTH_SHORT).show();
+                Thread th=new Thread(){
+                    @Override
+                    public void run() {
+                        try {
+                            sleep(1000);
+                        }catch (Exception e){}
+                        cam2.loadUrl("http://192.168.0.102:8001/?size="+cam2s.x+"X"+cam2s.y);
+                    }
+                };
+                th.start();
+            }
+        });
+        this.cam2.loadUrl("http://192.168.0.102:8001/?size="+cam2s.x+"X"+cam2s.y);
+        this.cam1.loadUrl("http://192.168.0.102:8000/?size="+cam1s.x+"X"+cam1s.y);
         th=null;
     }
 
-    public void updateCam1(Bitmap bit){
-        cam1=bit;
-        hand.post(new Runnable() {
-            @Override
-            public void run() {
-                invalidate();
-            }
-        });
-    }
-    public void updateCam2(Bitmap bit){
-        cam2=bit;
-        hand.post(new Runnable() {
-            @Override
-            public void run() {
-                invalidate();
-            }
-        });
-    }
-    public void updateCam3(Bitmap bit){
 
-    }
+
+
 
     public void showBigMsg(String msg){
         this.bigmsg=msg;
@@ -79,31 +104,7 @@ public class Background extends View {
         bigmsg=null;
         invalidate();
     }
-    boolean onetime=true;
-    private void ontime(){
-        onetime=false;
-        if(ct1==null) {
-            ImgSetter is1 = new ImgSetter() {
-                @Override
-                public void setBitmap(Bitmap bit) {
-                    updateCam1(bit);
-                }
-            };
-            ct1 = new CameraThread(is1, "192.168.0.102", 4100);
-            ct1.start();
-        }
-//            if(ct2==null) {
-//                ImgSetter is2 = new ImgSetter() {
-//                    @Override
-//                    public void setBitmap(Bitmap bit) {
-//                        updateCam2(bit);
-//                    }
-//                };
-//                ct2 = new CameraThread(is2, "192.168.0.102", 4200);
-//                ct2.start();
-//            }
 
-    }
 
     public boolean isGamepad() {
 
@@ -126,9 +127,7 @@ public class Background extends View {
 
     @Override
     public void onDraw(Canvas c){
-        if(onetime){
-            ontime();
-        }
+
         c.drawRGB(0,0,0);
         Cam1(0,0,getHeight(),getWidth(),c);
 
@@ -301,17 +300,7 @@ public class Background extends View {
 
 
     }
-    public void destroythis(){
-        if(ct1!=null){
-            ct1.destroys();
-        }
-        if(ct2!=null){
-            ct2.destroys();
-        }
-        if(con!=null){
-            con.destroys();
-        }
-    }
+
     public void MetalDetector(int x,int y,int hight,int weight,Canvas c){
         Paint p=new Paint();
         p.setStrokeWidth(3);
@@ -332,8 +321,8 @@ public class Background extends View {
         c.drawLine(x+weight,y,x+weight,y+hight,p);
         c.drawLine(x,y+hight,x+weight,y+hight,p);
         if(cam1!=null) {
-            Bitmap bit=Bitmap.createScaledBitmap(cam1,weight,hight,false);
-            c.drawBitmap(bit,x,y,new Paint());
+//            Bitmap bit=Bitmap.createScaledBitmap(cam1,weight,hight,false);
+//            c.drawBitmap(bit,x,y,new Paint());
         }
 
     }
@@ -346,8 +335,8 @@ public class Background extends View {
         c.drawLine(x+weight,y,x+weight,y+hight,p);
         c.drawLine(x,y+hight,x+weight,y+hight,p);
         if(cam2!=null) {
-            Bitmap bit=Bitmap.createScaledBitmap(cam2,weight,hight,false);
-            c.drawBitmap(bit,x,y,new Paint());
+//            Bitmap bit=Bitmap.createScaledBitmap(cam2,weight,hight,false);
+//            c.drawBitmap(bit,x,y,new Paint());
         }
 
     }
