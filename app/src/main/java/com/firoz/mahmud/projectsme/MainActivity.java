@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
@@ -21,6 +22,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
 
@@ -30,8 +32,9 @@ import java.io.InputStreamReader;
 public class MainActivity extends AppCompatActivity {
     Background bg=null;
     int speed=1;
+    String link1,link2;
     WebView cam1;
-
+    TextView speedview;
 
     @Override
     public void onAttachedToWindow() {
@@ -40,20 +43,22 @@ public class MainActivity extends AppCompatActivity {
 
         DisplayMetrics displayMetrics = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-        int height = displayMetrics.heightPixels/2;
-        int width = displayMetrics.widthPixels/2;
+        int height = (int) (displayMetrics.heightPixels/2.2);
+        int width = (int) (displayMetrics.widthPixels/2.2);
         if(bg==null){
             bg=new Background();
         }
         cam1=findViewById(R.id.mainview);
-        String link="http://192.168.0.102:8000" +"/?size="+width+"X"+height;
-        Toast.makeText(this, link, Toast.LENGTH_SHORT).show();
+        link1="http://192.168.0.102:8000" +"/?size="+width+"X"+height;
+        link2="http://192.168.0.102:8001" +"/?size="+width+"X"+height;
+        Toast.makeText(this, link1, Toast.LENGTH_SHORT).show();
         cam1.setWebViewClient(new WebViewClient());
         cam1.setWebChromeClient(new WebChromeClient());
         cam1.getSettings().setJavaScriptEnabled(true);
-        cam1.loadUrl(link);
+        cam1.loadUrl(link1);
     }
-
+    TextView but;
+    Handler hand;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -66,6 +71,9 @@ public class MainActivity extends AppCompatActivity {
 //        }
 //        setContentView(bg);
         setContentView(R.layout.activity_main);
+        hand=new Handler();
+        speedview=findViewById(R.id.speedofview);
+        but=findViewById(R.id.buttonviewer);
 
 
 //        vv=findViewById(R.id.main_video_view);
@@ -133,11 +141,49 @@ public class MainActivity extends AppCompatActivity {
 //    clow open=12
 //    clow close=13
     int joint=0;
+    Thread working=null;
+    boolean activated=true;
+    public void checker(){
+        if(working==null||!working.isAlive()){
+            try{
+                working.destroy();
+            }catch (Exception e){
+
+            }
+            working=new Thread(){
+                @Override
+                public void run() {
+                    while(true) {
+                        try {
+                            sleep(80);
+                        } catch (Exception e) {
+                        }
+                        if(!activated){
+                            bg.joystickstop();
+                            hand.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    but.setText("Deactivated");
+                                    but.setTextColor(Color.RED);
+                                }
+                            });
+                        }else{
+                            activated=false;
+                        }
+                    }
+                }
+            };
+            working.start();
+
+        }
+        activated=true;
+    }
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        if(event.getAction()==KeyEvent.ACTION_UP){
-            bg.joystickstop();
-        }else if (event.getAction()==KeyEvent.ACTION_DOWN){
+            checker();
+        if (event.getAction()==KeyEvent.ACTION_DOWN){
+            but.setTextColor(Color.GREEN);
+            but.setText("Activated "+event.getKeyCode());
             switch (event.getKeyCode()){
                 case 19:
                     bg.joystickforward();
@@ -222,25 +268,32 @@ public class MainActivity extends AppCompatActivity {
                 speed--;
                 if (speed <= 0) speed = 1;
                 bg.con.sendcmd(20 + speed);
-                Toast.makeText(this, "Speed is " + speed, Toast.LENGTH_SHORT).show();
+                    speedview.setText("Speed:"+speed);
                     break;
                 case 24:
                                     speed++;
-                if (speed >= 11) speed = 10;
+                if (speed >= 10) speed = 9;
                 bg.con.sendcmd(20 + speed);
-                Toast.makeText(this, "Speed is " + speed, Toast.LENGTH_SHORT).show();
+                    speedview.setText("Speed:"+speed);
+                    break;
+                case 14:
+                    cam1.loadUrl(link1);
+                    break;
+                case 15:
+                    cam1.loadUrl(link2);
+                    break;
+                default:
+                    Toast.makeText(this, ""+event.getKeyCode(), Toast.LENGTH_SHORT).show();
                     break;
             }
         }
+//        bg.joystickstop();
         return true;
     }
 
-//    @Override
-//    public boolean dispatchGenericMotionEvent(MotionEvent ev) {
-//        float xaxis = ev.getAxisValue(MotionEvent.AXIS_HAT_X);
-//        float yaxis = ev.getAxisValue(MotionEvent.AXIS_HAT_Y);
-//
-//        Toast.makeText(this, "x="+xaxis+" and y="+yaxis, Toast.LENGTH_SHORT).show();
-//        return true;
-//    }
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent ev) {
+        Toast.makeText(this, "motion activated", Toast.LENGTH_SHORT).show();
+        return true;
+    }
 }

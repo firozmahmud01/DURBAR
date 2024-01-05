@@ -40,6 +40,9 @@ public class Controller{
 //            this.is = this.sock.getInputStream();
             this.os = this.sock.getOutputStream();
         }catch (Exception e ){
+            try {
+                this.sock.close();
+            }catch (Exception ee){}
             this.sock=null;
             this.is=null;
             this.os=null;
@@ -55,15 +58,23 @@ public class Controller{
         this.os.write(b,0,b.length);
         this.os.flush();
     }
-
+    boolean isworking=false;
     public void sendcmd(int cmd){
+        if(isworking) {
+//            if(cmd==17){
+////                while(isworking){}
+//            }else {
+                return;
+//            }
+        }
 //        this.cmd=cmd;
         Thread th=new Thread(){
             @Override
             public void run() {
+                isworking=true;
                 try {
-                    if(sock==null) {
-                        while (sock == null) {
+                    if(Controller.this.sock==null) {
+                        while (Controller.this.sock == null) {
                             scanNet();
                             try {
                                 Thread.sleep(100);
@@ -73,7 +84,15 @@ public class Controller{
                     }else {
                         sendData(cmd);
                     }
-                }catch (Exception e){}
+                }catch (Exception e){
+                    try {
+                        Controller.this.sock.close();
+                    }catch (Exception ee){}
+                    Controller.this.sock=null;
+                    Controller.this.is=null;
+                    Controller.this.os=null;
+                }
+                isworking=false;
             }
         };
         th.start();
